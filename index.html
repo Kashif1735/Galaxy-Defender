@@ -149,7 +149,7 @@
             border: 2px solid #ff5555;
         }
         
-        /* Touch joystick area */
+        /* Joystick */
         #joystickBase {
             position: absolute;
             bottom: 20px;
@@ -208,7 +208,7 @@
     </div>
 
     <script>
-        // ========== GAME INITIALIZATION ========== //
+        // Game elements
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const gameContainer = document.getElementById('gameContainer');
@@ -230,7 +230,7 @@
             joystick: document.getElementById('joystick')
         };
         
-        // ========== GAME STATE ========== //
+        // Game state
         const gameState = {
             running: false,
             score: 0,
@@ -254,18 +254,16 @@
                 moveY: 0,
                 maxDistance: 50,
                 touchId: null
-            },
-            lastTime: 0,
-            deltaTime: 0
+            }
         };
         
-        // ========== PLAYER OBJECT ========== //
+        // Player object
         const player = {
             x: canvas.width / 2,
             y: canvas.height - 60,
             width: 50,
             height: 50,
-            speed: 12,
+            speed: 10,
             color: '#00a8ff',
             lastShot: 0,
             shootDelay: 300,
@@ -275,20 +273,20 @@
             draw() {
                 ctx.save();
                 
-                // Glow effect
-                const glowGradient = ctx.createRadialGradient(
+                // Ship glow
+                const glow = ctx.createRadialGradient(
                     this.x, this.y, 5,
                     this.x, this.y, 30
                 );
-                glowGradient.addColorStop(0, this.color);
-                glowGradient.addColorStop(1, 'rgba(0, 168, 255, 0)');
+                glow.addColorStop(0, this.color);
+                glow.addColorStop(1, 'rgba(0, 168, 255, 0)');
                 
-                ctx.fillStyle = glowGradient;
+                ctx.fillStyle = glow;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, 30, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Player ship
+                // Ship body
                 ctx.fillStyle = this.color;
                 ctx.beginPath();
                 ctx.moveTo(this.x, this.y - 20);
@@ -297,17 +295,9 @@
                 ctx.closePath();
                 ctx.fill();
                 
-                // Engine glow
+                // Engine effect
                 if (gameState.keys.ArrowUp || gameState.keys.w || gameState.joystick.active) {
-                    const engineGradient = ctx.createLinearGradient(
-                        this.x - 10, this.y + 15,
-                        this.x + 10, this.y + 15
-                    );
-                    engineGradient.addColorStop(0, '#ff0000');
-                    engineGradient.addColorStop(0.5, '#ff7700');
-                    engineGradient.addColorStop(1, '#ff0000');
-                    
-                    ctx.fillStyle = engineGradient;
+                    ctx.fillStyle = '#ff5500';
                     ctx.beginPath();
                     ctx.moveTo(this.x - 10, this.y + 15);
                     ctx.lineTo(this.x, this.y + 30);
@@ -321,7 +311,7 @@
                     ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
                     ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.arc(this.x, this.y, 30, 0, Math.PI * 2);
+                    ctx.arc(this.x, this.y, 35, 0, Math.PI * 2);
                     ctx.stroke();
                 }
                 
@@ -335,15 +325,15 @@
                 if (gameState.keys.ArrowUp || gameState.keys.w) this.y -= this.speed;
                 if (gameState.keys.ArrowDown || gameState.keys.s) this.y += this.speed;
                 
-                // Joystick controls - more responsive
+                // Joystick controls
                 if (gameState.joystick.active) {
-                    this.x += gameState.joystick.moveX * this.speed * 0.1;
-                    this.y += gameState.joystick.moveY * this.speed * 0.1;
+                    this.x += gameState.joystick.moveX * this.speed;
+                    this.y += gameState.joystick.moveY * this.speed;
                 }
                 
-                // Boundary checking
-                this.x = Math.max(this.width / 2, Math.min(canvas.width - this.width / 2, this.x));
-                this.y = Math.max(this.height / 2, Math.min(canvas.height - this.height / 2, this.y));
+                // Keep player in bounds
+                this.x = Math.max(this.width/2, Math.min(canvas.width - this.width/2, this.x));
+                this.y = Math.max(this.height/2, Math.min(canvas.height - this.height/2, this.y));
                 
                 // Shooting
                 if ((gameState.keys[' '] || gameState.keys.z || gameState.keys.Fire) && 
@@ -385,25 +375,14 @@
             }
         };
         
-        // ========== GAME FUNCTIONS ========== //
+        // Game functions
         function resizeCanvas() {
             canvas.width = gameContainer.clientWidth;
             canvas.height = gameContainer.clientHeight;
-            
-            if (gameState.running) {
-                player.y = canvas.height - 60;
-            }
-            
-            // Position joystick base
-            if (gameState.isTouchDevice) {
-                const baseRect = uiElements.joystickBase.getBoundingClientRect();
-                gameState.joystick.baseX = baseRect.left + baseRect.width/2;
-                gameState.joystick.baseY = baseRect.top + baseRect.height/2;
-            }
+            player.y = canvas.height - 60;
         }
         
         function initGame() {
-            // Reset game state
             gameState.running = true;
             gameState.score = 0;
             gameState.lives = 3;
@@ -412,54 +391,44 @@
             gameState.bullets = [];
             gameState.particles = [];
             gameState.powerUps = [];
-            gameState.joystick.active = false;
             
-            // Reset UI
-            uiElements.score.textContent = gameState.score;
-            uiElements.lives.textContent = gameState.lives;
-            uiElements.level.textContent = gameState.level;
+            uiElements.score.textContent = '0';
+            uiElements.lives.textContent = '3';
+            uiElements.level.textContent = '1';
             
-            // Reset player
             player.x = canvas.width / 2;
             player.y = canvas.height - 60;
             player.isInvulnerable = true;
             player.invulnerableTimer = Date.now();
             
-            // Show/hide screens
             uiElements.startScreen.style.display = 'none';
             uiElements.gameOverScreen.style.display = 'none';
             
-            // Show mobile controls if touch device
             if (gameState.isTouchDevice) {
                 uiElements.mobileControls.style.display = 'flex';
                 uiElements.joystickBase.style.display = 'block';
                 
                 // Initialize joystick base position
-                const baseRect = uiElements.joystickBase.getBoundingClientRect();
-                gameState.joystick.baseX = baseRect.left + baseRect.width/2;
-                gameState.joystick.baseY = baseRect.top + baseRect.height/2;
+                const rect = uiElements.joystickBase.getBoundingClientRect();
+                gameState.joystick.baseX = rect.left + rect.width/2;
+                gameState.joystick.baseY = rect.top + rect.height/2;
             }
             
-            // Start game loop
             gameLoop();
         }
         
         function gameLoop() {
             if (!gameState.running) return;
             
-            // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Draw background
             drawStarfield();
             
             // Spawn enemies
-            const now = Date.now();
-            if (now - gameState.lastEnemySpawn > gameState.enemySpawnRate) {
+            if (Date.now() - gameState.lastEnemySpawn > gameState.enemySpawnRate) {
                 spawnEnemy();
-                gameState.lastEnemySpawn = now;
+                gameState.lastEnemySpawn = Date.now();
                 
-                // Increase difficulty
                 if (gameState.score > 0 && gameState.score % 1000 === 0) {
                     gameState.level++;
                     uiElements.level.textContent = gameState.level;
@@ -467,7 +436,6 @@
                 }
             }
             
-            // Update and draw game objects
             player.update();
             player.draw();
             updateBullets();
@@ -482,7 +450,6 @@
         function drawStarfield() {
             ctx.fillStyle = 'white';
             
-            // Static stars
             for (let i = 0; i < 100; i++) {
                 const x = Math.sin(i * 100) * canvas.width / 2 + canvas.width / 2;
                 const y = i * canvas.height / 100;
@@ -494,7 +461,6 @@
                 ctx.fill();
             }
             
-            // Moving stars
             ctx.globalAlpha = 1;
             for (let i = 0; i < gameState.level * 5; i++) {
                 const x = Math.random() * canvas.width;
@@ -506,7 +472,6 @@
                 ctx.fill();
             }
             
-            // Nebula effect
             const nebula = ctx.createRadialGradient(
                 canvas.width / 2, canvas.height / 2, 0,
                 canvas.width / 2, canvas.height / 2, canvas.width
@@ -552,7 +517,6 @@
                 const bullet = gameState.bullets[i];
                 bullet.y -= bullet.speed;
                 
-                // Draw bullet
                 ctx.save();
                 const gradient = ctx.createRadialGradient(
                     bullet.x, bullet.y, 0,
@@ -565,7 +529,6 @@
                 ctx.fillRect(bullet.x - bullet.width / 2, bullet.y - bullet.height, bullet.width, bullet.height);
                 ctx.restore();
                 
-                // Remove off-screen bullets
                 if (bullet.y < 0) {
                     gameState.bullets.splice(i, 1);
                 }
@@ -577,7 +540,6 @@
                 const enemy = gameState.enemies[i];
                 enemy.y += enemy.speed;
                 
-                // Draw enemy
                 ctx.save();
                 const glow = ctx.createRadialGradient(
                     enemy.x, enemy.y, enemy.width / 4,
@@ -608,13 +570,11 @@
                 
                 ctx.restore();
                 
-                // Enemy shooting
                 if (Date.now() - enemy.lastShot > enemy.shootDelay && Math.random() > 0.95) {
                     enemy.shoot();
                     enemy.lastShot = Date.now();
                 }
                 
-                // Remove off-screen enemies
                 if (enemy.y > canvas.height + enemy.height) {
                     gameState.enemies.splice(i, 1);
                 }
@@ -680,7 +640,7 @@
                 for (let j = gameState.enemies.length - 1; j >= 0; j--) {
                     const enemy = gameState.enemies[j];
                     
-                    if (bullet.speed > 0 && // Player bullets
+                    if (bullet.speed > 0 && 
                         bullet.x > enemy.x - enemy.width / 2 &&
                         bullet.x < enemy.x + enemy.width / 2 &&
                         bullet.y > enemy.y - enemy.height / 2 &&
@@ -727,7 +687,7 @@
                 for (let i = gameState.bullets.length - 1; i >= 0; i--) {
                     const bullet = gameState.bullets[i];
                     
-                    if (bullet.speed < 0 && // Enemy bullets
+                    if (bullet.speed < 0 && 
                         bullet.x > player.x - player.width / 2 &&
                         bullet.x < player.x + player.width / 2 &&
                         bullet.y > player.y - player.height / 2 &&
@@ -803,33 +763,21 @@
         function handleTouchStart(e) {
             e.preventDefault();
             const touch = e.changedTouches[0];
-            const rect = canvas.getBoundingClientRect();
-            const touchX = touch.clientX;
-            const touchY = touch.clientY;
+            const rect = uiElements.joystickBase.getBoundingClientRect();
             
             // Check if touch is in joystick area
-            const joystickRect = uiElements.joystickBase.getBoundingClientRect();
-            if (touchX >= joystickRect.left && 
-                touchX <= joystickRect.right &&
-                touchY >= joystickRect.top && 
-                touchY <= joystickRect.bottom) {
+            if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+                touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
                 
                 gameState.joystick.active = true;
                 gameState.joystick.touchId = touch.identifier;
-                gameState.joystick.startX = touchX;
-                gameState.joystick.startY = touchY;
-                
-                // Store joystick base position
-                gameState.joystick.baseX = joystickRect.left + joystickRect.width/2;
-                gameState.joystick.baseY = joystickRect.top + joystickRect.height/2;
-                
-                updateJoystick(touchX, touchY);
+                updateJoystick(touch.clientX, touch.clientY);
             }
         }
         
         function handleTouchMove(e) {
-            e.preventDefault();
             if (!gameState.joystick.active) return;
+            e.preventDefault();
             
             // Find our touch
             for (let i = 0; i < e.changedTouches.length; i++) {
@@ -842,7 +790,9 @@
         }
         
         function handleTouchEnd(e) {
+            if (!gameState.joystick.active) return;
             e.preventDefault();
+            
             // Find our touch
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
@@ -854,37 +804,29 @@
         }
         
         function updateJoystick(touchX, touchY) {
+            const rect = uiElements.joystickBase.getBoundingClientRect();
+            const centerX = rect.left + rect.width/2;
+            const centerY = rect.top + rect.height/2;
+            
             // Calculate distance from center
-            const dx = touchX - gameState.joystick.baseX;
-            const dy = touchY - gameState.joystick.baseY;
+            const dx = touchX - centerX;
+            const dy = touchY - centerY;
             const distance = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx);
             
             // Limit joystick to max distance
-            if (distance > gameState.joystick.maxDistance) {
-                const angle = Math.atan2(dy, dx);
-                const boundedX = gameState.joystick.baseX + Math.cos(angle) * gameState.joystick.maxDistance;
-                const boundedY = gameState.joystick.baseY + Math.sin(angle) * gameState.joystick.maxDistance;
-                
-                // Update joystick position (relative to base)
-                const joystickX = boundedX - (gameState.joystick.baseX - uiElements.joystickBase.offsetLeft - uiElements.joystickBase.offsetWidth/2);
-                const joystickY = boundedY - (gameState.joystick.baseY - uiElements.joystickBase.offsetTop - uiElements.joystickBase.offsetHeight/2);
-                
-                uiElements.joystick.style.transform = `translate(${joystickX - 30}px, ${joystickY - 30}px)`;
-                
-                // Set movement values (normalized)
-                gameState.joystick.moveX = Math.cos(angle);
-                gameState.joystick.moveY = Math.sin(angle);
-            } else {
-                // Update joystick position (relative to base)
-                const joystickX = touchX - (gameState.joystick.baseX - uiElements.joystickBase.offsetLeft - uiElements.joystickBase.offsetWidth/2);
-                const joystickY = touchY - (gameState.joystick.baseY - uiElements.joystickBase.offsetTop - uiElements.joystickBase.offsetHeight/2);
-                
-                uiElements.joystick.style.transform = `translate(${joystickX - 30}px, ${joystickY - 30}px)`;
-                
-                // Set movement values (normalized)
-                gameState.joystick.moveX = dx / gameState.joystick.maxDistance;
-                gameState.joystick.moveY = dy / gameState.joystick.maxDistance;
-            }
+            const limitedDistance = Math.min(distance, gameState.joystick.maxDistance);
+            
+            // Calculate joystick position
+            const joystickX = limitedDistance * Math.cos(angle);
+            const joystickY = limitedDistance * Math.sin(angle);
+            
+            // Update joystick visual position
+            uiElements.joystick.style.transform = `translate(${joystickX}px, ${joystickY}px)`;
+            
+            // Set movement values (normalized)
+            gameState.joystick.moveX = joystickX / gameState.joystick.maxDistance;
+            gameState.joystick.moveY = joystickY / gameState.joystick.maxDistance;
         }
         
         function resetJoystick() {
@@ -892,7 +834,7 @@
             gameState.joystick.touchId = null;
             gameState.joystick.moveX = 0;
             gameState.joystick.moveY = 0;
-            uiElements.joystick.style.transform = 'translate(30px, 30px)';
+            uiElements.joystick.style.transform = 'translate(0, 0)';
         }
         
         // ========== EVENT LISTENERS ========== //
@@ -927,7 +869,7 @@
         uiElements.startBtn.addEventListener('click', initGame);
         uiElements.restartBtn.addEventListener('click', initGame);
         uiElements.instructionsBtn.addEventListener('click', () => {
-            alert("HOW TO PLAY:\n\nDesktop:\n- Arrow Keys or WASD: Move\n- Space or Z: Shoot\n\nMobile:\n- Touch and drag in the left joystick area to move\n- Tap FIRE button to shoot\n\nDestroy enemies to score points. Collect power-ups for bonuses. Survive as long as possible!");
+            alert("HOW TO PLAY:\n\n- Move with arrow keys or the joystick\n- Shoot with spacebar or the FIRE button\n- Destroy enemies to score points\n- Collect power-ups for bonuses\n- Survive as long as possible!");
         });
         
         // Prevent context menu on mobile
