@@ -150,12 +150,12 @@
         }
         
         /* Touch joystick area */
-        #touchArea {
+        #joystickBase {
             position: absolute;
             bottom: 20px;
             left: 20px;
-            width: 150px;
-            height: 150px;
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
             background: rgba(0, 168, 255, 0.2);
             border: 2px dashed rgba(0, 168, 255, 0.5);
@@ -170,10 +170,10 @@
             height: 60px;
             background: rgba(255, 255, 255, 0.4);
             border-radius: 50%;
-            top: 45px;
-            left: 45px;
+            top: 30px;
+            left: 30px;
             touch-action: none;
-            transition: transform 0.1s;
+            transition: transform 0.05s;
         }
     </style>
 </head>
@@ -188,7 +188,7 @@
         </div>
         
         <div id="mobileControls">
-            <div id="touchArea">
+            <div id="joystickBase">
                 <div id="joystick"></div>
             </div>
             <div id="fireBtn">FIRE</div>
@@ -226,7 +226,7 @@
             instructionsBtn: document.getElementById('instructionsBtn'),
             mobileControls: document.getElementById('mobileControls'),
             fireBtn: document.getElementById('fireBtn'),
-            touchArea: document.getElementById('touchArea'),
+            joystickBase: document.getElementById('joystickBase'),
             joystick: document.getElementById('joystick')
         };
         
@@ -246,13 +246,17 @@
             isTouchDevice: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
             joystick: {
                 active: false,
+                baseX: 0,
+                baseY: 0,
                 startX: 0,
                 startY: 0,
                 moveX: 0,
                 moveY: 0,
                 maxDistance: 50,
                 touchId: null
-            }
+            },
+            lastTime: 0,
+            deltaTime: 0
         };
         
         // ========== PLAYER OBJECT ========== //
@@ -261,7 +265,7 @@
             y: canvas.height - 60,
             width: 50,
             height: 50,
-            speed: 12, // Increased speed for mobile
+            speed: 12,
             color: '#00a8ff',
             lastShot: 0,
             shootDelay: 300,
@@ -331,13 +335,10 @@
                 if (gameState.keys.ArrowUp || gameState.keys.w) this.y -= this.speed;
                 if (gameState.keys.ArrowDown || gameState.keys.s) this.y += this.speed;
                 
-                // Joystick controls - faster movement
+                // Joystick controls - more responsive
                 if (gameState.joystick.active) {
-                    const moveX = gameState.joystick.moveX * 1.5; // Increased multiplier for faster movement
-                    const moveY = gameState.joystick.moveY * 1.5;
-                    
-                    this.x += moveX * this.speed * 0.1;
-                    this.y += moveY * this.speed * 0.1;
+                    this.x += gameState.joystick.moveX * this.speed * 0.1;
+                    this.y += gameState.joystick.moveY * this.speed * 0.1;
                 }
                 
                 // Boundary checking
@@ -392,6 +393,13 @@
             if (gameState.running) {
                 player.y = canvas.height - 60;
             }
+            
+            // Position joystick base
+            if (gameState.isTouchDevice) {
+                const baseRect = uiElements.joystickBase.getBoundingClientRect();
+                gameState.joystick.baseX = baseRect.left + baseRect.width/2;
+                gameState.joystick.baseY = baseRect.top + baseRect.height/2;
+            }
         }
         
         function initGame() {
@@ -424,7 +432,12 @@
             // Show mobile controls if touch device
             if (gameState.isTouchDevice) {
                 uiElements.mobileControls.style.display = 'flex';
-                uiElements.touchArea.style.display = 'block';
+                uiElements.joystickBase.style.display = 'block';
+                
+                // Initialize joystick base position
+                const baseRect = uiElements.joystickBase.getBoundingClientRect();
+                gameState.joystick.baseX = baseRect.left + baseRect.width/2;
+                gameState.joystick.baseY = baseRect.top + baseRect.height/2;
             }
             
             // Start game loop
@@ -783,7 +796,7 @@
             uiElements.finalScore.textContent = `Score: ${gameState.score}`;
             uiElements.gameOverScreen.style.display = 'flex';
             uiElements.mobileControls.style.display = 'none';
-            uiElements.touchArea.style.display = 'none';
+            uiElements.joystickBase.style.display = 'none';
         }
         
         // ========== TOUCH CONTROLS ========== //
@@ -791,21 +804,26 @@
             e.preventDefault();
             const touch = e.changedTouches[0];
             const rect = canvas.getBoundingClientRect();
-            const touchX = touch.clientX - rect.left;
-            const touchY = touch.clientY - rect.top;
+            const touchX = touch.clientX;
+            const touchY = touch.clientY;
             
             // Check if touch is in joystick area
-            const joystickArea = uiElements.touchArea.getBoundingClientRect();
-            if (touchX >= joystickArea.left - rect.left && 
-                touchX <= joystickArea.right - rect.left &&
-                touchY >= joystickArea.top - rect.top && 
-                touchY <= joystickArea.bottom - rect.top) {
+            const joystickRect = uiElements.joystickBase.getBoundingClientRect();
+            if (touchX >= joystickRect.left && 
+                touchX <= joystickRect.right &&
+                touchY >= joystickRect.top && 
+                touchY <= joystickRect.bottom) {
                 
                 gameState.joystick.active = true;
                 gameState.joystick.touchId = touch.identifier;
-                gameState.joystick.startX = joystickArea.left + joystickArea.width/2 - rect.left;
-                gameState.joystick.startY = joystickArea.top + joystickArea.height/2 - rect.top;
-                updateJoystickPosition(touchX, touchY);
+                gameState.joystick.startX = touchX;
+                gameState.joystick.startY = touchY;
+                
+                // Store joystick base position
+                gameState.joystick.baseX = joystickRect.left + joystickRect.width/2;
+                gameState.joystick.baseY = joystickRect.top + joystickRect.height/2;
+                
+                updateJoystick(touchX, touchY);
             }
         }
         
@@ -817,10 +835,7 @@
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 if (touch.identifier === gameState.joystick.touchId) {
-                    const rect = canvas.getBoundingClientRect();
-                    const touchX = touch.clientX - rect.left;
-                    const touchY = touch.clientY - rect.top;
-                    updateJoystickPosition(touchX, touchY);
+                    updateJoystick(touch.clientX, touch.clientY);
                     break;
                 }
             }
@@ -838,27 +853,33 @@
             }
         }
         
-        function updateJoystickPosition(touchX, touchY) {
+        function updateJoystick(touchX, touchY) {
             // Calculate distance from center
-            const dx = touchX - gameState.joystick.startX;
-            const dy = touchY - gameState.joystick.startY;
+            const dx = touchX - gameState.joystick.baseX;
+            const dy = touchY - gameState.joystick.baseY;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
             // Limit joystick to max distance
             if (distance > gameState.joystick.maxDistance) {
                 const angle = Math.atan2(dy, dx);
-                const boundedX = gameState.joystick.startX + Math.cos(angle) * gameState.joystick.maxDistance;
-                const boundedY = gameState.joystick.startY + Math.sin(angle) * gameState.joystick.maxDistance;
+                const boundedX = gameState.joystick.baseX + Math.cos(angle) * gameState.joystick.maxDistance;
+                const boundedY = gameState.joystick.baseY + Math.sin(angle) * gameState.joystick.maxDistance;
                 
-                // Update joystick position
-                uiElements.joystick.style.transform = `translate(${boundedX - gameState.joystick.startX}px, ${boundedY - gameState.joystick.startY}px)`;
+                // Update joystick position (relative to base)
+                const joystickX = boundedX - (gameState.joystick.baseX - uiElements.joystickBase.offsetLeft - uiElements.joystickBase.offsetWidth/2);
+                const joystickY = boundedY - (gameState.joystick.baseY - uiElements.joystickBase.offsetTop - uiElements.joystickBase.offsetHeight/2);
+                
+                uiElements.joystick.style.transform = `translate(${joystickX - 30}px, ${joystickY - 30}px)`;
                 
                 // Set movement values (normalized)
                 gameState.joystick.moveX = Math.cos(angle);
                 gameState.joystick.moveY = Math.sin(angle);
             } else {
-                // Update joystick position
-                uiElements.joystick.style.transform = `translate(${dx}px, ${dy}px)`;
+                // Update joystick position (relative to base)
+                const joystickX = touchX - (gameState.joystick.baseX - uiElements.joystickBase.offsetLeft - uiElements.joystickBase.offsetWidth/2);
+                const joystickY = touchY - (gameState.joystick.baseY - uiElements.joystickBase.offsetTop - uiElements.joystickBase.offsetHeight/2);
+                
+                uiElements.joystick.style.transform = `translate(${joystickX - 30}px, ${joystickY - 30}px)`;
                 
                 // Set movement values (normalized)
                 gameState.joystick.moveX = dx / gameState.joystick.maxDistance;
@@ -871,7 +892,7 @@
             gameState.joystick.touchId = null;
             gameState.joystick.moveX = 0;
             gameState.joystick.moveY = 0;
-            uiElements.joystick.style.transform = 'translate(0, 0)';
+            uiElements.joystick.style.transform = 'translate(30px, 30px)';
         }
         
         // ========== EVENT LISTENERS ========== //
